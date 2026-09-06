@@ -1,24 +1,683 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Llama Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🦙 Llama 3.2 Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background */
+        .chat-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 50%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 1;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 32px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .chat-header h1 {
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .chat-header h1 span {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 16px 6px 12px;
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
+        }
+
+        .status-dot.disconnected {
+            background: #ef4444;
+            animation: none;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .status-text {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px 30px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 75%;
+            padding: 12px 20px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .message.assistant .message-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system .message-content {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border-radius: 12px;
+            max-width: 90%;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .message-label {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-bottom: 6px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .message.user .message-label {
+            text-align: right;
+        }
+
+        .message-text {
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .message-text code {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .message-text pre {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 18px;
+            max-width: 70%;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .typing-indicator.active {
+            display: inline-block;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-12px);
+            }
+        }
+
+        .chat-input {
+            padding: 20px 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 14px 22px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            font-size: 15px;
+            color: white;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .chat-input input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .chat-input input:focus {
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.1);
+        }
+
+        .chat-input input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .chat-input button {
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .chat-input button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .chat-input button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .chat-input button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .connection-info {
+            padding: 10px 30px;
+            background: rgba(16, 185, 129, 0.1);
+            border-top: 1px solid rgba(16, 185, 129, 0.2);
+            font-size: 12px;
+            color: rgba(16, 185, 129, 0.8);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .connection-info.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: rgba(239, 68, 68, 0.8);
+        }
+
+        .connection-info .info-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-info .ip-address {
+            font-family: 'Courier New', monospace;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+                max-width: 100%;
+            }
+
+            .chat-header {
+                padding: 15px 20px;
+            }
+
+            .chat-header h1 {
+                font-size: 18px;
+            }
+
+            .logo {
+                font-size: 24px;
+            }
+
+            .chat-messages {
+                padding: 15px 20px;
+            }
+
+            .message-content {
+                max-width: 85%;
+                padding: 10px 16px;
+            }
+
+            .chat-input {
+                padding: 15px 20px;
+                flex-direction: column;
+            }
+
+            .chat-input input {
+                padding: 12px 18px;
+                font-size: 14px;
+            }
+
+            .chat-input button {
+                padding: 12px 20px;
+                justify-content: center;
+                font-size: 14px;
+            }
+
+            .connection-info {
+                padding: 8px 20px;
+                font-size: 11px;
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .chat-header {
+                padding: 12px 15px;
+            }
+
+            .status {
+                padding: 4px 12px 4px 8px;
+            }
+
+            .status-text {
+                font-size: 11px;
+            }
+
+            .message-content {
+                max-width: 90%;
+                padding: 8px 14px;
+            }
+
+            .message-text {
+                font-size: 14px;
+            }
+        }
+
+        /* Loading animation for messages */
+        .message-loading {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            animation: loadingDots 1.4s infinite;
+        }
+
+        @keyframes loadingDots {
+            0%, 20% { opacity: 0; }
+            40% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
 </head>
 <body>
-    <h1>Chat with Llama 3.2</h1>
-    <input id="message" placeholder="Type your message...">
-    <button onclick="sendMessage()">Send</button>
-    <div id="response"></div>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-left">
+                <div class="logo">🦙</div>
+                <h1>Llama <span>3.2</span></h1>
+            </div>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">Connecting...</span>
+            </div>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message system">
+                <div class="message-content">
+                    <span class="message-label">System</span>
+                    <div class="message-text">🔄 Connecting to Llama 3.2 server...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Type your message..." 
+                autofocus
+                disabled
+            >
+            <button id="sendButton" disabled>
+                <span>Send</span>
+                <span>→</span>
+            </button>
+        </div>
+        
+        <div class="connection-info" id="connectionInfo">
+            <span class="info-text">🔄 Initializing connection...</span>
+        </div>
+    </div>
 
     <script>
-        // IMPORTANT: Your Flask server URL
-        const API_URL = 'http://192.168.31.133:5001/chat';  // Your laptop's IP/port
+        // Configuration - UPDATE THIS WITH YOUR IP
+        const LOCAL_IP = '192.168.31.133';  // ← Change this to your laptop's IP
+        const API_URL = `http://${LOCAL_IP}:5001/chat`;
+        
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const connectionInfo = document.getElementById('connectionInfo');
+        
+        let isConnected = false;
+        let messageCount = 0;
+        
+        // Typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator';
+        typingIndicator.innerHTML = `
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        `;
+        chatMessages.appendChild(typingIndicator);
+        
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            const label = document.createElement('span');
+            label.className = 'message-label';
+            const labelMap = {
+                'user': 'You',
+                'assistant': 'Assistant',
+                'system': 'System'
+            };
+            label.textContent = labelMap[role] || role;
+            
+            const text = document.createElement('div');
+            text.className = 'message-text';
+            
+            // Handle markdown-like formatting
+            if (typeof content === 'string') {
+                text.innerHTML = content.replace(/\n/g, '<br>');
+            } else {
+                text.textContent = content;
+            }
+            
+            contentDiv.appendChild(label);
+            contentDiv.appendChild(text);
+            messageDiv.appendChild(contentDiv);
+            
+            chatMessages.insertBefore(messageDiv, typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messageCount++;
+        }
+        
+        function updateStatus(connected, message) {
+            if (connected) {
+                statusDot.className = 'status-dot';
+                statusText.textContent = 'Connected';
+                connectionInfo.className = 'connection-info';
+                connectionInfo.innerHTML = `
+                    <span class="info-text">✅ ${message || 'Connected to server'}</span>
+                    <span class="ip-address">${API_URL}</span>
+                `;
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+                isConnected = true;
+            } else {
+                statusDot.className = 'status-dot disconnected';
+                statusText.textContent = 'Disconnected';
+                connectionInfo.className = 'connection-info error';
+                connectionInfo.innerHTML = `
+                    <span class="info-text">❌ ${message || 'Connection failed'}</span>
+                    <span class="ip-address">${API_URL}</span>
+                `;
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                isConnected = false;
+            }
+        }
+        
+        async function checkConnection() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: 'ping' }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    updateStatus(true, 'Connected to Llama 3.2');
+                    
+                    // Remove system message if it exists
+                    const systemMsg = chatMessages.querySelector('.message.system');
+                    if (systemMsg) {
+                        systemMsg.remove();
+                        // Add welcome message
+                        addMessage('Hello! I\'m Llama 3.2 running locally on your laptop. How can I help you today?', 'assistant');
+                    }
+                } else {
+                    updateStatus(false, 'Server responded with error');
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    updateStatus(false, 'Connection timeout - make sure server is running');
+                } else {
+                    updateStatus(false, `Cannot connect: ${error.message}`);
+                }
+            }
+        }
         
         async function sendMessage() {
-            const message = document.getElementById('message').value;
+            const message = messageInput.value.trim();
+            if (!message || !isConnected) return;
+            
+            // Clear input and disable
+            messageInput.value = '';
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+            
+            // Add user message
+            addMessage(message, 'user');
+            
+            // Show typing indicator
+            typingIndicator.classList.add('active');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
             
             try {
-                // Call YOUR laptop's Flask server
-                const response = await fetch(`${API_URL}/chat`, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -27,12 +686,59 @@
                 });
                 
                 const data = await response.json();
-                document.getElementById('response').innerHTML = data.response;
+                typingIndicator.classList.remove('active');
+                
+                if (data.success) {
+                    addMessage(data.response, 'assistant');
+                } else {
+                    addMessage(`⚠️ Error: ${data.error}`, 'assistant');
+                }
             } catch (error) {
-                document.getElementById('response').innerHTML = 
-                    'Error: Make sure Flask is running on your laptop!';
+                typingIndicator.classList.remove('active');
+                addMessage(`⚠️ Connection error: ${error.message}`, 'assistant');
+                // Try to reconnect
+                setTimeout(checkConnection, 3000);
             }
+            
+            // Re-enable
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+            messageInput.focus();
         }
+        
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Handle Ctrl+Enter for new line
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.shiftKey) {
+                // Allow new line
+                return;
+            }
+        });
+        
+        // Check connection on load
+        setTimeout(checkConnection, 500);
+        
+        // Check connection every 30 seconds
+        setInterval(checkConnection, 30000);
+        
+        // Auto-focus on click anywhere
+        document.addEventListener('click', () => {
+            if (isConnected && document.activeElement !== messageInput) {
+                messageInput.focus();
+            }
+        });
+        
+        console.log('🦙 Llama 3.2 Chat initialized');
+        console.log(`📍 API URL: ${API_URL}`);
+        console.log('💡 Make sure your Flask server is running on port 5001');
     </script>
 </body>
 </html>
