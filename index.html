@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Llama Chat</title>
+</head>
+<body>
+    <h1>Chat with Llama 3.2</h1>
+    <input id="message" placeholder="Type your message...">
+    <button onclick="sendMessage()">Send</button>
+    <div id="response"></div>
+
+    <script>
+        // IMPORTANT: Your Flask server URL
+        const API_URL = 'http://localhost:5001';  // Your laptop's IP/port
+        
+        async function sendMessage() {
+            const message = document.getElementById('message').value;
+            
+            try {
+                // Call YOUR laptop's Flask server
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').innerHTML = data.response;
+            } catch (error) {
+                document.getElementById('response').innerHTML = 
+                    'Error: Make sure Flask is running on your laptop!';
+            }
+        }
+    </script>
+</body>
+</html>
